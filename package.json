@@ -1,0 +1,33 @@
+{
+  "name": "smart-profiles-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "predev": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput & node --watch --enable-source-maps dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --enable-source-maps dist/index.js",
+    "create-admin": "npm run build && node dist/scripts/create-admin.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.0.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.15.30",
+    "typescript": "^5.9.2"
+  }
+}
