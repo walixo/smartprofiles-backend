@@ -11,7 +11,8 @@ const envSchema = z.object({
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: z.string().min(1).default('7d'),
-  CLIENT_ORIGIN: z.url().default('http://localhost:5173'),
+  // Comma-separated so staging and production origins can share one deployment.
+  CLIENT_ORIGIN: z.string().min(1).default('http://localhost:5173'),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -28,3 +29,31 @@ export const env = parsed.data;
 
 export const isProduction = env.NODE_ENV === 'production';
 export const isDevelopment = env.NODE_ENV === 'development';
+
+/**
+ * Browser origins permitted to call this API cross-origin.
+ *
+ * Validated at boot rather than per request: a typo here silently blocks every
+ * browser request, which is far harder to diagnose at 2am than a refusal to
+ * start. Never contains `*` — responses carry an `Authorization` header, so the
+ * allowlist has to be explicit.
+ */
+export const allowedOrigins: readonly string[] = (() => {
+  const origins = env.CLIENT_ORIGIN.split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  const invalid = origins.filter((origin) => !URL.canParse(origin));
+
+  if (origins.length === 0 || invalid.length > 0) {
+    console.error(
+      `Invalid CLIENT_ORIGIN. Expected a comma-separated list of absolute origins, e.g.\n` +
+        `  CLIENT_ORIGIN=http://localhost:5173,https://smartprofiles.eu\n` +
+        (invalid.length > 0 ? `Could not parse: ${invalid.join(', ')}` : 'It is empty.'),
+    );
+    process.exit(1);
+  }
+
+  // Normalise away trailing slashes and paths — the browser sends a bare origin.
+  return origins.map((origin) => new URL(origin).origin);
+})();

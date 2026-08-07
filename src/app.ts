@@ -2,6 +2,7 @@ import express, { type Express } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { isProduction } from './config/env.js';
+import { cors } from './middleware/cors.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { notFoundHandler } from './middleware/not-found-handler.js';
 import { apiRouter } from './routes.js';
@@ -16,6 +17,12 @@ export function createApp(): Express {
   app.disable('x-powered-by');
 
   app.use(helmet());
+
+  // Before the body parser and the limiter: a preflight carries no body, and
+  // charging it against the rate limit would let a chatty browser exhaust a
+  // user's quota with requests they never made.
+  app.use('/api', cors);
+
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
