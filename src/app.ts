@@ -1,12 +1,27 @@
-import express, { type Express } from 'express';
-import rateLimit from 'express-rate-limit';
-import helmet from 'helmet';
+import express, {
+  type Express,
+  type NextFunction,
+  type Request,
+  type RequestHandler,
+  type Response,
+} from 'express';
+import { rateLimit } from 'express-rate-limit';
+import helmetModule, { type HelmetOptions } from 'helmet';
 import { isProduction } from './config/env.js';
 import { cors } from './middleware/cors.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { notFoundHandler } from './middleware/not-found-handler.js';
 import { apiRouter } from './routes.js';
 import { ApiError } from './utils/api-error.js';
+
+// Some deployment toolchains expose CommonJS packages as a module namespace
+// even when their typings advertise a default export. Normalizing the export
+// here keeps Helmet callable in both NodeNext and Vercel's build environment.
+type HelmetFactory = (options?: HelmetOptions) => RequestHandler;
+const helmetImport = helmetModule as unknown as {
+  default?: HelmetFactory;
+};
+const helmet = helmetImport.default ?? (helmetModule as unknown as HelmetFactory);
 
 export function createApp(): Express {
   const app = express();
@@ -42,7 +57,7 @@ export function createApp(): Express {
       limit: isProduction ? 1200 : 6000,
       standardHeaders: 'draft-8',
       legacyHeaders: false,
-      handler: (_req, _res, next) => {
+      handler: (_req: Request, _res: Response, next: NextFunction) => {
         next(ApiError.tooManyRequests());
       },
     }),
