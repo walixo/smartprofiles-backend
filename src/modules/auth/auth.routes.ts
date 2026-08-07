@@ -1,5 +1,10 @@
-import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import {
+  Router,
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { isProduction } from '../../config/env.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { validateBody } from '../../middleware/validate-body.js';
@@ -18,7 +23,7 @@ const credentialsLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-  handler: (_req, _res, next) => {
+  handler: (_req: Request, _res: Response, next: NextFunction) => {
     next(ApiError.tooManyRequests('Too many attempts. Please wait a few minutes and try again.'));
   },
 });
