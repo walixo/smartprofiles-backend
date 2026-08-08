@@ -20,25 +20,41 @@ const READY_STATES: Record<number, DatabaseStatus> = {
   3: 'disconnecting',
 };
 
+let connectionPromise: Promise<void> | undefined;
+
+mongoose.connection.on('error', (error: unknown) => {
+  console.error('MongoDB connection error:', error);
+});
+
+mongoose.connection.on('disconnected', () => {
+  connectionPromise = undefined;
+  console.warn('MongoDB disconnected.');
+});
+
 export function getDatabaseStatus(): DatabaseStatus {
   return READY_STATES[mongoose.connection.readyState] ?? 'unknown';
 }
 
 export async function connectToDatabase(): Promise<void> {
-  await mongoose.connect(env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 10_000,
-    autoIndex: !isProduction,
-  });
+  if (mongoose.connection.readyState === 1) return;
 
-  mongoose.connection.on('error', (error: unknown) => {
-    console.error('MongoDB connection error:', error);
-  });
+  connectionPromise ??= mongoose
+    .connect(env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 10_000,
+      autoIndex: !isProduction,
+    })
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      // Allow a later request (or local restart logic) to retry after a
+      // transient connection failure.
+      connectionPromise = undefined;
+      throw error;
+    });
 
-  mongoose.connection.on('disconnected', () => {
-    console.warn('MongoDB disconnected.');
-  });
+  await connectionPromise;
 }
 
 export async function disconnectFromDatabase(): Promise<void> {
   await mongoose.connection.close();
+  connectionPromise = undefined;
 }

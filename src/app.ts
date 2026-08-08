@@ -7,6 +7,7 @@ import express, {
 } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import helmetModule, { type HelmetOptions } from 'helmet';
+import { connectToDatabase } from './config/db.js';
 import { isProduction } from './config/env.js';
 import { cors } from './middleware/cors.js';
 import { errorHandler } from './middleware/error-handler.js';
@@ -69,4 +70,24 @@ export function createApp(): Express {
   app.use(errorHandler);
 
   return app;
+}
+
+const serverlessApp = createApp();
+
+/**
+ * Vercel executes this module as a serverless function and requires its
+ * default export to be a request handler. The database connection is opened
+ * lazily and reused by warm function instances.
+ */
+export default async function handler(req: Request, res: Response): Promise<void> {
+  try {
+    await connectToDatabase();
+    serverlessApp(req, res);
+  } catch (error: unknown) {
+    console.error('Failed to connect to MongoDB:', error);
+    res.status(503).json({
+      success: false,
+      message: 'Service temporarily unavailable.',
+    });
+  }
 }
