@@ -13,6 +13,13 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().min(1).default('7d'),
   // Comma-separated so staging and production origins can share one deployment.
   CLIENT_ORIGIN: z.string().min(1).default('http://localhost:5173'),
+
+  // Optional as a set: without all three, uploads are disabled and the rest of
+  // the app runs normally. The secret never leaves the server — the browser
+  // receives only a short-lived signature.
+  CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
+  CLOUDINARY_API_KEY: z.string().min(1).optional(),
+  CLOUDINARY_API_SECRET: z.string().min(1).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -57,3 +64,21 @@ export const allowedOrigins: readonly string[] = (() => {
   // Normalise away trailing slashes and paths — the browser sends a bare origin.
   return origins.map((origin) => new URL(origin).origin);
 })();
+
+/**
+ * Cloudinary credentials, present only when all three are configured.
+ *
+ * Treated as a unit deliberately: a half-configured integration that signs
+ * with a missing secret would produce uploads that fail at Cloudinary with an
+ * opaque error, which is worse than the feature being cleanly unavailable.
+ */
+export const cloudinary =
+  env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET
+    ? {
+        cloudName: env.CLOUDINARY_CLOUD_NAME,
+        apiKey: env.CLOUDINARY_API_KEY,
+        apiSecret: env.CLOUDINARY_API_SECRET,
+      }
+    : null;
+
+export const isUploadsEnabled = cloudinary !== null;
